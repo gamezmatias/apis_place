@@ -16,8 +16,8 @@ A simple and robust RESTful API for managing places built with Laravel 12 and Po
 
 ## Requirements
 
-- PHP 8.2+
-- PostgreSQL 12+
+- PHP 8.3+ (required for Laravel 12 and development dependencies)
+- PostgreSQL 16+
 - Composer
 - Docker & Docker Compose (for containerized deployment)
 
@@ -41,20 +41,51 @@ The easiest way to get started is using Docker:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/gamezmatias/apis_places.git
 cd apiPlace
 
-# Start the services
+# Build and start the services (first time)
+docker-compose up --build -d
+
+# For subsequent runs, use:
 docker-compose up -d
 
 # The API will be available at http://localhost:8000
 ```
 
 That's it! The application will automatically:
-- Set up PostgreSQL database
+- Set up PostgreSQL database with persistent storage
 - Run migrations
 - Seed sample data
-- Configure the application
+- Configure nginx + php-fpm
+- Start all services with health checks
+
+### Verify Everything is Working
+
+```bash
+# Check container status
+docker-compose ps
+
+# Check logs
+docker-compose logs app
+
+# Test the API
+curl http://localhost:8000/api/places
+```
+
+### Recent Docker Improvements (v2.0)
+
+**🚀 Major Updates:**
+- **PHP 8.3**: Upgraded from PHP 8.2 for full Laravel 12 compatibility
+- **Fixed Volume Mounting**: Resolved vendor/autoload.php issues with anonymous volumes
+- **Development Dependencies**: Included dev dependencies for complete functionality
+- **Enhanced Troubleshooting**: Added comprehensive error resolution guide
+
+**🔧 Technical Fixes:**
+- Added `postgresql-client` to Dockerfile for database connectivity checks
+- Configured anonymous volumes to preserve `vendor` and `node_modules`
+- Removed `--no-dev` flag from composer install for PailServiceProvider compatibility
+- Updated all documentation to reflect current configuration
 
 ## Manual Installation
 
@@ -429,6 +460,101 @@ Search places by name using case-insensitive partial matching (PostgreSQL ILIKE)
 
 ---
 
+## Docker Services
+
+The application runs with the following services:
+
+| Service | Image | Port | Description |
+|---------|-------|------|-------------|
+| **app** | Custom (PHP 8.3-fpm + nginx) | 8000 | Laravel application |
+| **postgres** | postgres:16-alpine | 5432 | PostgreSQL database |
+| **redis** | redis:7-alpine | 6379 | Redis cache |
+
+### Service Configuration
+
+- **PostgreSQL**: Database `places_api`, user `postgres`, password `password`
+- **Persistent Data**: PostgreSQL data is stored in `postgres_data` volume
+- **Dependencies**: `vendor` and `node_modules` are preserved in anonymous volumes
+- **Health Checks**: All services include health checks for reliability
+- **Networking**: Services communicate through `places-network`
+
+---
+
+## Troubleshooting
+
+### Docker Issues
+
+**Problem**: API returns "socket hang up" or connection refused
+```bash
+# Check if containers are running
+docker-compose ps
+
+# Check application logs
+docker-compose logs app
+
+# Restart services
+docker-compose down && docker-compose up -d
+```
+
+**Problem**: Database connection issues
+```bash
+# Check PostgreSQL health
+docker-compose logs postgres
+
+# Connect to database directly
+docker-compose exec postgres psql -U postgres -d places_api
+```
+
+**Problem**: App container won't start (waiting for PostgreSQL)
+```bash
+# This was fixed by adding postgresql-client to Dockerfile
+# If you encounter this, rebuild the image:
+docker-compose down
+docker-compose up --build -d
+```
+
+**Problem**: "Failed to open stream: No such file or directory" (vendor/autoload.php)
+```bash
+# This occurs when volumes overwrite the container's vendor directory
+# Fixed by adding anonymous volumes in docker-compose.yml:
+# volumes:
+#   - .:/var/www/html
+#   - /var/www/html/vendor      # Preserves vendor from build
+#   - /var/www/html/node_modules # Preserves node_modules from build
+```
+
+**Problem**: "Class 'Laravel\Pail\PailServiceProvider' not found"
+```bash
+# This occurs with PHP version incompatibility
+# Fixed by upgrading to PHP 8.3 in Dockerfile and including dev dependencies:
+# FROM php:8.3-fpm
+# RUN composer install --optimize-autoloader (without --no-dev)
+```
+
+**Problem**: Dependency version conflicts during composer install
+```bash
+# Check PHP version compatibility:
+docker-compose exec app php -v
+
+# If using PHP 8.2, some Laravel 12 dev dependencies require PHP 8.3+
+# Solution: Upgrade Dockerfile to use php:8.3-fpm
+```
+
+### Manual Installation Issues
+
+**Problem**: Database connection failed
+- Verify PostgreSQL is running and accessible
+- Check database credentials in `.env`
+- Ensure database `places_api` exists
+
+**Problem**: Migration errors
+```bash
+# Reset database
+php artisan migrate:fresh --seed
+```
+
+---
+
 ## Contributing
 
 1. Fork the repository
@@ -437,5 +563,17 @@ Search places by name using case-insensitive partial matching (PostgreSQL ILIKE)
 4. Add tests for new functionality
 5. Ensure all tests pass
 6. Submit a pull request
+
+---
+
+## Version Information
+
+**Current Version:** 2.0  
+**Laravel:** 12.x  
+**PHP:** 8.3+  
+**Database:** PostgreSQL 16  
+
+**Last Updated:** October 2025  
+**Status:** ✅ Production Ready
 
 
