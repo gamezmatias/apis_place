@@ -53,6 +53,8 @@ docker-compose up -d
 # The API will be available at http://localhost:8000
 ```
 
+**⚠️ Important:** The docker-compose.yml includes anonymous volumes for `vendor` and `node_modules` to prevent local files from overriding container dependencies.
+
 That's it! The application will automatically:
 - Set up PostgreSQL database with persistent storage
 - Run migrations
